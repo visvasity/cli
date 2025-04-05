@@ -1,69 +1,67 @@
 // Copyright (c) 2025 Visvasity LLC
 
-// Package cli implements minimalistic command-line parsing.
-//
-// Commands can be defined as functions and objects. Commands can be grouped
-// into subcommands for better organization.
-//
-// Command-line flags can be defined using the standard library's
-// flag.FlagSets. Error handling mechanism in the FlagSets is ignored.
-//
-// # SPECIAL COMMANDS
-//
-// Special top-level commands "help", "flags", and "commands" are added for
-// documentation.
-//
-// # OPTIONAL INTERFACES
-//
-// Documentation is collected through optional interfaces. Commands can
-// implement `interface{ Synopsis() string }` to provide a short, one-line
-// description and `interface{ CommandHelp() string }` to provide a more
-// detailed multi-line, multi-paragraph documentation.
-//
-// # EXAMPLE COMMAND FUNCTION
-//
-//		func printVersion(ctx context.Context, args []string) error {
-//		  fmt.Fprintln(os.Stderr, "...")
-//		  return nil
-//		}
-//
-//		func main() {
-//		  cmds := []cli.Command{
-//		    cli.NewCommand("version", cli.CmdFunc(printVersion), nil, "output version information"),
-//		    ...
-//		  }
-//		  if err := cli.Run(context.Background(), cmds, os.Args); err != nil {
-//	      log.Fatal(err)
-//	    }
-//		}
-//
-// # EXAMPLE COMMAND OBJECT
-//
-//		type runCmd struct {
-//			background  bool
-//			port        int
-//			ip          string
-//			secretsPath string
-//			dataDir     string
-//		}
-//
-//		func (r *runCmd) Run(ctx context.Context, args []string) error {
-//			if len(p.dataDir) == 0 {
-//				p.dataDir = filepath.Join(os.Getenv("HOME"), ".data")
-//			}
-//			...
-//			return nil
-//		}
-//
-//		func (r *runCmd) Command() (*flag.FlagSet, CmdFunc) {
-//			fset := flag.NewFlagSet("run", flag.ContinueOnError)
-//			fset.BoolVar(&p.background, "background", false, "runs the daemon in background")
-//			fset.IntVar(&p.port, "port", 10000, "TCP port number for the daemon")
-//			fset.StringVar(&p.ip, "ip", "0.0.0.0", "TCP ip address for the daemon")
-//			fset.StringVar(&p.secretsPath, "secrets-file", "", "path to credentials file")
-//			fset.StringVar(&p.dataDir, "data-dir", "", "path to the data directory")
-//	    return fset, CmdFunc(r.Run)
-//		}
+/*
+Package cli implements minimalistic command-line parsing.
+
+Commands can be defined as functions and objects. Commands can be grouped into
+subcommands for better organization.
+
+Command-line flags can be defined using the standard library's
+flag.FlagSets. Error handling mechanism in the FlagSets is ignored.
+
+Special top-level commands "help", "flags", and "commands" are added for
+documentation.
+
+Documentation is collected through optional interfaces. Commands can implement
+`interface{ Synopsis() string }` to provide a short, one-line description and
+`interface{ CommandHelp() string }` to provide a more detailed multi-line,
+multi-paragraph documentation.
+
+# Example Command Function
+
+	func printVersion(ctx context.Context, args []string) error {
+	  fmt.Fprintln(os.Stderr, "...")
+	  return nil
+	}
+
+	func main() {
+	  cmds := []cli.Command{
+	    cli.NewCommand("version", cli.CmdFunc(printVersion), nil, "output version information"),
+	    ...
+	  }
+	  if err := cli.Run(context.Background(), cmds, os.Args); err != nil {
+	     log.Fatal(err)
+		}
+	}
+
+# Example Command Object
+
+	type runCmd struct {
+		background  bool
+		port        int
+		ip          string
+		secretsPath string
+		dataDir     string
+	}
+
+	func (r *runCmd) Run(ctx context.Context, args []string) error {
+		if len(p.dataDir) == 0 {
+			p.dataDir = filepath.Join(os.Getenv("HOME"), ".data")
+		}
+		...
+		return nil
+	}
+
+	func (r *runCmd) Command() (*flag.FlagSet, CmdFunc) {
+		fset := flag.NewFlagSet("run", flag.ContinueOnError)
+		fset.BoolVar(&p.background, "background", false, "runs the daemon in background")
+		fset.IntVar(&p.port, "port", 10000, "TCP port number for the daemon")
+		fset.StringVar(&p.ip, "ip", "0.0.0.0", "TCP ip address for the daemon")
+		fset.StringVar(&p.secretsPath, "secrets-file", "", "path to credentials file")
+		fset.StringVar(&p.dataDir, "data-dir", "", "path to the data directory")
+	  return fset, CmdFunc(r.Run)
+	}
+*/
 package cli
 
 import (
