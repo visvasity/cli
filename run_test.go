@@ -5,7 +5,9 @@ package cli
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
+	"os"
 	"testing"
 )
 
@@ -30,6 +32,11 @@ func (t *TestCmd) Command() (*flag.FlagSet, CmdFunc) {
 	})
 }
 
+func printVersion(context.Context, []string) error {
+	fmt.Fprintln(os.Stderr, "...")
+	return nil
+}
+
 func TestRun(t *testing.T) {
 	ctx := context.Background()
 
@@ -40,7 +47,7 @@ func TestRun(t *testing.T) {
 	jobsList.flags.String("format", "json", "list output format")
 	jobsSummary := newTestCmd("summary")
 	jobsSummary.flags.String("format", "json", "summary output format")
-	jobs := CommandGroup("jobs", "manage jobs", jobsList, jobsSummary)
+	jobs := NewGroup("jobs", "manage jobs", jobsList, jobsSummary)
 
 	jobPause := newTestCmd("pause")
 	jobPause.flags.Duration("timeout", 0, "pause duration")
@@ -50,16 +57,16 @@ func TestRun(t *testing.T) {
 	jobCancel.flags.Duration("after", 0, "cancellation delay")
 	jobArchive := newTestCmd("archive")
 	jobDelete := newTestCmd("delete")
-	job := CommandGroup("job", "manage single job", jobPause, jobResume, jobCancel, jobArchive, jobDelete)
+	job := NewGroup("job", "manage single job", jobPause, jobResume, jobCancel, jobArchive, jobDelete)
 
 	dbGet := newTestCmd("get")
 	dbSet := newTestCmd("set")
 	dbDelete := newTestCmd("delete")
 	dbScan := newTestCmd("scan")
 	dbBackup := newTestCmd("backup")
-	db := CommandGroup("db", "manage database", dbGet, dbSet, dbDelete, dbScan, dbBackup)
+	db := NewGroup("db", "manage database", dbGet, dbSet, dbDelete, dbScan, dbBackup)
 
-	cmds := []Command{run, jobs, job, db}
+	cmds := []Command{run, jobs, job, db, NewCommand("version", printVersion, nil, "print version")}
 
 	{
 		args := []string{"db", "scan", "db-scan-argument"}

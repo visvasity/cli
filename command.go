@@ -1,21 +1,43 @@
 // Copyright (c) 2025 Visvasity LLC
 
-// Package cli implements a minimalistic command-line parsing functionality
-// using the standard library's flag.FlagSets.
+// Package cli implements minimalistic command-line parsing.
 //
-// Users can define commands and group them into subcommands of arbitrary
-// depths.
+// Commands can be defined as functions and objects. Commands can be grouped
+// into subcommands for better organization.
+//
+// Command-line flags can be defined using the standard library's
+// flag.FlagSets. Error handling mechanism in the FlagSets is ignored.
+//
+// # SPECIAL COMMANDS
 //
 // Special top-level commands "help", "flags", and "commands" are added for
-// documentation. Documentation is collected through optional interfaces.
+// documentation.
 //
 // # OPTIONAL INTERFACES
 //
-// Commands can implement `interface{ Synopsis() string }` to provide a short
-// one-line description and `interface{ CommandHelp() string }` to provide a
-// more detailed multi-line, multi-paragraph documentation.
+// Documentation is collected through optional interfaces. Commands can
+// implement `interface{ Synopsis() string }` to provide a short, one-line
+// description and `interface{ CommandHelp() string }` to provide a more
+// detailed multi-line, multi-paragraph documentation.
 //
-// # EXAMPLE
+// # EXAMPLE COMMAND FUNCTION
+//
+//		func printVersion(ctx context.Context, args []string) error {
+//		  fmt.Fprintln(os.Stderr, "...")
+//		  return nil
+//		}
+//
+//		func main() {
+//		  cmds := []cli.Command{
+//		    cli.NewCommand("version", cli.CmdFunc(printVersion), nil, "output version information"),
+//		    ...
+//		  }
+//		  if err := cli.Run(context.Background(), cmds, os.Args); err != nil {
+//	      log.Fatal(err)
+//	    }
+//		}
+//
+// # EXAMPLE COMMAND OBJECT
 //
 //		type runCmd struct {
 //			background  bool
@@ -27,7 +49,7 @@
 //
 //		func (r *runCmd) Run(ctx context.Context, args []string) error {
 //			if len(p.dataDir) == 0 {
-//				p.dataDir = filepath.Join(os.Getenv("HOME"), ".tradebot")
+//				p.dataDir = filepath.Join(os.Getenv("HOME"), ".data")
 //			}
 //			...
 //			return nil
@@ -50,22 +72,45 @@ import (
 	"os"
 )
 
-// CmdFunc defines the signature for command execution functions.
+// CmdFunc defines the signature for command implementation functions.
 type CmdFunc func(ctx context.Context, args []string) error
 
-// Command interface defines the requirements for Command implementations.
+// Command interface defines the requirements for Command objects.
 type Command interface {
-	// Command function returns the command-line flags and command execution
-	// function for a command/subcommand.
-	//
-	// Command function should return a non-nil flag.FlagSet object with the
-	// command name.
+	// Command returns the command-line flags and command implementation
+	// function. Returned FlagSet name is used as the Command name, so it must be
+	// non-nil.
 	Command() (*flag.FlagSet, CmdFunc)
 }
 
-// CommandGroup groups a collection of commands under a parent command. This
-// allows for defining subcommands under another command name.
-func CommandGroup(name, description string, cmds ...Command) Command {
+type basicCommand struct {
+	cmd      CmdFunc
+	fset     *flag.FlagSet
+	synopsis string
+}
+
+func (v *basicCommand) Command() (*flag.FlagSet, CmdFunc) {
+	return v.fset, v.cmd
+}
+
+func (v *basicCommand) Synopsis() string {
+	return v.synopsis
+}
+
+// NewCommand creates a command instance from the input parameters.
+func NewCommand(name string, cmd CmdFunc, fset *flag.FlagSet, desc string) Command {
+	if fset == nil {
+		fset = flag.NewFlagSet(name, flag.ContinueOnError)
+	} else {
+		fset.Init(name, flag.ContinueOnError)
+	}
+	return &basicCommand{cmd: cmd, fset: fset, synopsis: desc}
+}
+
+// NewGroup makes the input commands into subcommands of a new command with the
+// given name and description. This mechanism allows for defining command
+// hierarchies of arbitrary depths.
+func NewGroup(name, description string, cmds ...Command) Command {
 	return &cmdGroup{
 		flags:    flag.NewFlagSet(name, flag.ContinueOnError),
 		subcmds:  cmds,
@@ -77,10 +122,6 @@ func CommandGroup(name, description string, cmds ...Command) Command {
 // picks the best command to execute from `cmds`. Top-level command flags from
 // flag.CommandLine flags are also processed on the way to resolving the best
 // command.
-//
-// Run guarantees that `Command()` method is called only once for each member
-// in `cmds` so that a new `flag.FlagSet` can be created within the Command()
-// function.
 func Run(ctx context.Context, cmds []Command, args []string) error {
 	if cmds == nil {
 		return os.ErrInvalid
@@ -88,6 +129,10 @@ func Run(ctx context.Context, cmds []Command, args []string) error {
 	root := cmdGroup{
 		flags:   flag.CommandLine,
 		subcmds: cmds,
+	}
+	// If user passes os.Args, turn it into os.Args[1:] instead.
+	if &args[0] == &os.Args[0] {
+		args = os.Args[1:]
 	}
 	return root.run(ctx, args)
 }
