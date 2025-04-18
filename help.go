@@ -51,18 +51,18 @@ func getUsage(cmdpath []*cmdData) string {
 }
 
 func getHelpDoc(c Command) string {
-	if v, ok := c.(interface{ CommandHelp() string }); ok {
-		return v.CommandHelp()
+	if v, ok := c.(interface{ Description() string }); ok {
+		return v.Description()
 	}
-	return getSynopsis(c)
+	return getPurpose(c)
 }
 
-func getSynopsis(c Command) string {
-	if v, ok := c.(interface{ Synopsis() string }); ok {
-		return v.Synopsis()
+func getPurpose(c Command) string {
+	if v, ok := c.(interface{ Purpose() string }); ok {
+		return v.Purpose()
 	}
 	if v, ok := c.(*cmdGroup); ok {
-		return v.synopsis
+		return v.purpose
 	}
 	return ""
 }
@@ -92,7 +92,7 @@ func getInheritedFlags(cmdpath []*cmdData) (*flag.FlagSet, int) {
 	return fset, numFlags(fset)
 }
 
-// getSubcommands returns all subcommand names and synopsises as a pair.
+// getSubcommands returns all subcommand names and purpose as a pair.
 func getSubcommands(cmdpath []*cmdData) [][2]string {
 	var spcmds [][2]string
 	if len(cmdpath) == 1 {
@@ -106,7 +106,7 @@ func getSubcommands(cmdpath []*cmdData) [][2]string {
 	var subcmds, groups [][2]string
 	if cg, ok := cmdpath[len(cmdpath)-1].cmd.(*cmdGroup); ok {
 		for _, c := range cg.subcmds {
-			n, s := getName(c), getSynopsis(c)
+			n, s := getName(c), getPurpose(c)
 			if _, ok := c.(*cmdGroup); ok {
 				groups = append(groups, [2]string{n, s})
 			} else {

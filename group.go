@@ -16,7 +16,7 @@ type cmdGroup struct {
 	flags      *flag.FlagSet
 	subcmds    []Command
 	specialCmd string
-	synopsis   string
+	purpose    string
 }
 
 var specialCmds = []string{"help", "flags", "commands"}

@@ -64,7 +64,7 @@ func (c *List) Command() (*flag.FlagSet, cli.CmdFunc) {
 	return fset, cli.CmdFunc(c.Run)
 }
 
-func (c *List) Synopsis() string {
+func (c *List) Purpose() string {
 	return "Prints keys and values in the database"
 }
 

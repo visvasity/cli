@@ -51,12 +51,14 @@
 //
 // Optional interfaces for documentation:
 //
-//	type Synopsis interface {
-//	  Synopsis() string
+//	type Purpose interface {
+//	  // One line use or summary for the command.
+//	  Purpose() string
 //	}
 //
-//	type CommandHelp interface {
-//	  CommandHelp() string
+//	type Description interface {
+//	  // Multi line or multi-paragraph help for the command.
+//	  Description() string
 //	}
 package cli
 
@@ -84,8 +86,8 @@ type CmdFunc func(ctx context.Context, args []string) error
 // serves as the command name and must be non-empty.
 //
 // Commands may implement optional interfaces for documentation:
-//   - Synopsis() string: Returns a brief description.
-//   - CommandHelp() string: Returns detailed help text.
+//   - Purpose() string: Returns a brief description.
+//   - Description() string: Returns detailed help text.
 //
 // Create commands using NewCommand, NewGroup, or custom types.
 //
@@ -108,17 +110,17 @@ type Command interface {
 }
 
 type basicCommand struct {
-	cmd      CmdFunc
-	fset     *flag.FlagSet
-	synopsis string
+	cmd     CmdFunc
+	fset    *flag.FlagSet
+	purpose string
 }
 
 func (v *basicCommand) Command() (*flag.FlagSet, CmdFunc) {
 	return v.fset, v.cmd
 }
 
-func (v *basicCommand) Synopsis() string {
-	return v.synopsis
+func (v *basicCommand) Purpose() string {
+	return v.purpose
 }
 
 // NewCommand creates a function-based command with the specified name, function,
@@ -140,7 +142,7 @@ func NewCommand(name string, cmd CmdFunc, fset *flag.FlagSet, desc string) Comma
 	} else {
 		fset.Init(name, flag.ContinueOnError)
 	}
-	return &basicCommand{cmd: cmd, fset: fset, synopsis: desc}
+	return &basicCommand{cmd: cmd, fset: fset, purpose: desc}
 }
 
 // NewGroup creates a subcommand group with the specified name, description, and
@@ -151,11 +153,11 @@ func NewCommand(name string, cmd CmdFunc, fset *flag.FlagSet, desc string) Comma
 //	startCmd := cli.NewCommand("start", startFunc, nil, "Start server")
 //	stopCmd := cli.NewCommand("stop", stopFunc, nil, "Stop server")
 //	group := cli.NewGroup("server", "Server operations", startCmd, stopCmd)
-func NewGroup(name, description string, cmds ...Command) Command {
+func NewGroup(name, helpLine string, cmds ...Command) Command {
 	return &cmdGroup{
-		flags:    flag.NewFlagSet(name, flag.ContinueOnError),
-		subcmds:  cmds,
-		synopsis: description,
+		flags:   flag.NewFlagSet(name, flag.ContinueOnError),
+		subcmds: cmds,
+		purpose: helpLine,
 	}
 }
 
