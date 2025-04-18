@@ -1,67 +1,63 @@
 // Copyright (c) 2025 Visvasity LLC
 
-/*
-Package cli implements minimalistic command-line parsing.
-
-Commands can be defined as functions and objects. Commands can be grouped into
-subcommands for better organization.
-
-Command-line flags can be defined using the standard library's
-flag.FlagSets. Error handling mechanism in the FlagSets is ignored.
-
-Special top-level commands "help", "flags", and "commands" are added for
-documentation.
-
-Documentation is collected through optional interfaces. Commands can implement
-`interface{ Synopsis() string }` to provide a short, one-line description and
-`interface{ CommandHelp() string }` to provide a more detailed multi-line,
-multi-paragraph documentation.
-
-# Example Command Function
-
-	func printVersion(ctx context.Context, args []string) error {
-	  fmt.Fprintln(os.Stderr, "...")
-	  return nil
-	}
-
-	func main() {
-	  cmds := []cli.Command{
-	    cli.NewCommand("version", cli.CmdFunc(printVersion), nil, "output version information"),
-	    ...
-	  }
-	  if err := cli.Run(context.Background(), cmds, os.Args); err != nil {
-	     log.Fatal(err)
-		}
-	}
-
-# Example Command Object
-
-	type runCmd struct {
-		background  bool
-		port        int
-		ip          string
-		secretsPath string
-		dataDir     string
-	}
-
-	func (r *runCmd) Run(ctx context.Context, args []string) error {
-		if len(p.dataDir) == 0 {
-			p.dataDir = filepath.Join(os.Getenv("HOME"), ".data")
-		}
-		...
-		return nil
-	}
-
-	func (r *runCmd) Command() (*flag.FlagSet, CmdFunc) {
-		fset := flag.NewFlagSet("run", flag.ContinueOnError)
-		fset.BoolVar(&p.background, "background", false, "runs the daemon in background")
-		fset.IntVar(&p.port, "port", 10000, "TCP port number for the daemon")
-		fset.StringVar(&p.ip, "ip", "0.0.0.0", "TCP ip address for the daemon")
-		fset.StringVar(&p.secretsPath, "secrets-file", "", "path to credentials file")
-		fset.StringVar(&p.dataDir, "data-dir", "", "path to the data directory")
-	  return fset, CmdFunc(r.Run)
-	}
-*/
+// Package cli provides a lightweight framework for creating command-line
+// interfaces (CLIs). It supports defining commands as functions or objects,
+// organizing them into subcommand groups, parsing flags using the
+// [flag.FlagSet]s, and generating documentation via built-in commands: "help",
+// "flags", and "commands".
+//
+// Key features:
+//   - Commands defined as functions or objects implementing the Command interface.
+//   - Hierarchical subcommand groups.
+//   - Flag parsing using flag.FlagSet with custom error handling.
+//   - Automatic documentation through built-in commands.
+//   - Custom documentation using optional interfaces.
+//   - Context-aware execution for cancellation and timeouts.
+//
+// Create commands with [NewCommand] for functions, [NewGroup] for subcommands,
+// or custom types implementing the [Command] interface. Execute the CLI by passing
+// commands to [Run] with command-line arguments.
+//
+// Example (Function-based command):
+//
+//	var listFlags flag.FlagSet
+//	verbose := listFlags.Bool("v", false, "Enable verbose output")
+//	listCmd := func(ctx context.Context, args []string) error {
+//	    if *verbose {
+//	        fmt.Println("Verbose listing")
+//	    } else {
+//	        fmt.Println("Listing")
+//	    }
+//	    return nil
+//	}
+//	cmd := cli.NewCommand("list", listCmd, &listFlags, "List resources")
+//	cli.Run(context.Background(), []cli.Command{cmd}, os.Args)
+//
+// Example (Object-based command):
+//
+//	type GreetCommand struct {
+//	    name  string
+//	}
+//	func (c *GreetCommand) Command() (*flag.FlagSet, cli.CmdFunc) {
+//	    fset := flag.NewFlagSet("greet", flag.ContinueOnError)
+//	    fset.StringVar(&c.name, "name", "World", "Name to greet")
+//	    return fset, func(ctx context.Context, args []string) error {
+//	        fmt.Printf("Hello, %s!\n", c.name)
+//	        return nil
+//	    }
+//	}
+//	cmd := &GreetCommand{}
+//	cli.Run(context.Background(), []cli.Command{cmd}, os.Args)
+//
+// Optional interfaces for documentation:
+//
+//	type Synopsis interface {
+//	  Synopsis() string
+//	}
+//
+//	type CommandHelp interface {
+//	  CommandHelp() string
+//	}
 package cli
 
 import (
@@ -70,14 +66,44 @@ import (
 	"os"
 )
 
-// CmdFunc defines the signature for command implementation functions.
+// CmdFunc defines the behavior of a CLI command. It accepts a context for
+// cancellation and a slice of arguments (excluding the command name and flags),
+// returning an error if execution fails.
+//
+// Example:
+//
+//	cmd := func(ctx context.Context, args []string) error {
+//	    fmt.Println("Hello, CLI")
+//	    return nil
+//	}
+//	command := cli.NewCommand("hello", cmd, nil, "Print greeting")
 type CmdFunc func(ctx context.Context, args []string) error
 
-// Command interface defines the requirements for Command objects.
+// Command defines a CLI command or subcommand group. Implementations must
+// provide a flag.FlagSet and CmdFunc via the Command method. The FlagSet's name
+// serves as the command name and must be non-empty.
+//
+// Commands may implement optional interfaces for documentation:
+//   - Synopsis() string: Returns a brief description.
+//   - CommandHelp() string: Returns detailed help text.
+//
+// Create commands using NewCommand, NewGroup, or custom types.
+//
+// Example:
+//
+//	type VersionCommand struct {
+//	    flags flag.FlagSet
+//	}
+//	func (c *VersionCommand) Command() (*flag.FlagSet, cli.CmdFunc) {
+//	    c.flags.Init("version", flag.ContinueOnError)
+//	    return c.flags, func(ctx context.Context, args []string) error {
+//	        fmt.Println("Version 1.0.0")
+//	        return nil
+//	    }
+//	}
 type Command interface {
-	// Command returns the command-line flags and command implementation
-	// function. Returned FlagSet name is used as the Command name, so it must be
-	// non-nil.
+	// Command returns the command's FlagSet and implementation function.
+	// The FlagSet's name is the command name and must be non-empty.
 	Command() (*flag.FlagSet, CmdFunc)
 }
 
@@ -95,7 +121,19 @@ func (v *basicCommand) Synopsis() string {
 	return v.synopsis
 }
 
-// NewCommand creates a command instance from the input parameters.
+// NewCommand creates a function-based command with the specified name, function,
+// flags, and description. The flag.FlagSet is optional; if nil, no flags are
+// supported. The package overrides flag.FlagSet's default error handling.
+//
+// Example:
+//
+//	var flags flag.FlagSet
+//	name := flags.String("name", "World", "Name to greet")
+//	cmd := func(ctx context.Context, args []string) error {
+//	    fmt.Printf("Hello, %s!\n", *name)
+//	    return nil
+//	}
+//	command := cli.NewCommand("greet", cmd, &flags, "Greet a user")
 func NewCommand(name string, cmd CmdFunc, fset *flag.FlagSet, desc string) Command {
 	if fset == nil {
 		fset = flag.NewFlagSet(name, flag.ContinueOnError)
@@ -105,9 +143,14 @@ func NewCommand(name string, cmd CmdFunc, fset *flag.FlagSet, desc string) Comma
 	return &basicCommand{cmd: cmd, fset: fset, synopsis: desc}
 }
 
-// NewGroup makes the input commands into subcommands of a new command with the
-// given name and description. This mechanism allows for defining command
-// hierarchies of arbitrary depths.
+// NewGroup creates a subcommand group with the specified name, description, and
+// subcommands. Returns a Command, enabling nested command hierarchies.
+//
+// Example:
+//
+//	startCmd := cli.NewCommand("start", startFunc, nil, "Start server")
+//	stopCmd := cli.NewCommand("stop", stopFunc, nil, "Stop server")
+//	group := cli.NewGroup("server", "Server operations", startCmd, stopCmd)
 func NewGroup(name, description string, cmds ...Command) Command {
 	return &cmdGroup{
 		flags:    flag.NewFlagSet(name, flag.ContinueOnError),
@@ -116,10 +159,15 @@ func NewGroup(name, description string, cmds ...Command) Command {
 	}
 }
 
-// Run parses command-line arguments from `args` into flags and subcommands and
-// picks the best command to execute from `cmds`. Top-level command flags from
-// flag.CommandLine flags are also processed on the way to resolving the best
-// command.
+// Run executes the CLI, parsing arguments to invoke a command from the provided
+// commands. It supports built-in "help", "flags", and "commands" for
+// documentation and uses the context for cancellation. Returns an error if
+// parsing or execution fails.
+//
+// Example:
+//
+//	cmd := cli.NewCommand("version", versionCmd, nil, "Display version")
+//	err := cli.Run(context.Background(), []cli.Command{cmd}, os.Args)
 func Run(ctx context.Context, cmds []Command, args []string) error {
 	if cmds == nil {
 		return os.ErrInvalid
