@@ -109,17 +109,17 @@ type Command interface {
 	Command() (*flag.FlagSet, CmdFunc)
 }
 
-type basicCommand struct {
+type basicCmd struct {
 	cmd     CmdFunc
 	fset    *flag.FlagSet
 	purpose string
 }
 
-func (v *basicCommand) Command() (*flag.FlagSet, CmdFunc) {
+func (v *basicCmd) Command() (*flag.FlagSet, CmdFunc) {
 	return v.fset, v.cmd
 }
 
-func (v *basicCommand) Purpose() string {
+func (v *basicCmd) Purpose() string {
 	return v.purpose
 }
 
@@ -142,7 +142,7 @@ func NewCommand(name string, cmd CmdFunc, fset *flag.FlagSet, desc string) Comma
 	} else {
 		fset.Init(name, flag.ContinueOnError)
 	}
-	return &basicCommand{cmd: cmd, fset: fset, purpose: desc}
+	return &basicCmd{cmd: cmd, fset: fset, purpose: desc}
 }
 
 // NewGroup creates a subcommand group with the specified name, description, and
@@ -154,7 +154,7 @@ func NewCommand(name string, cmd CmdFunc, fset *flag.FlagSet, desc string) Comma
 //	stopCmd := cli.NewCommand("stop", stopFunc, nil, "Stop server")
 //	group := cli.NewGroup("server", "Server operations", startCmd, stopCmd)
 func NewGroup(name, helpLine string, cmds ...Command) Command {
-	return &cmdGroup{
+	return &groupCmd{
 		flags:   flag.NewFlagSet(name, flag.ContinueOnError),
 		subcmds: cmds,
 		purpose: helpLine,
@@ -174,7 +174,7 @@ func Run(ctx context.Context, cmds []Command, args []string) error {
 	if cmds == nil {
 		return os.ErrInvalid
 	}
-	root := cmdGroup{
+	root := groupCmd{
 		flags:   flag.CommandLine,
 		subcmds: cmds,
 	}

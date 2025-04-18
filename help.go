@@ -42,7 +42,7 @@ func getUsage(cmdpath []*cmdData) string {
 		}
 	}
 
-	if _, ok := cmdpath[len(cmdpath)-1].cmd.(*cmdGroup); ok {
+	if _, ok := cmdpath[len(cmdpath)-1].cmd.(*groupCmd); ok {
 		words = append(words, "<subcommand>")
 	}
 
@@ -61,7 +61,7 @@ func getPurpose(c Command) string {
 	if v, ok := c.(interface{ Purpose() string }); ok {
 		return v.Purpose()
 	}
-	if v, ok := c.(*cmdGroup); ok {
+	if v, ok := c.(*groupCmd); ok {
 		return v.purpose
 	}
 	return ""
@@ -104,10 +104,10 @@ func getSubcommands(cmdpath []*cmdData) [][2]string {
 	}
 
 	var subcmds, groups [][2]string
-	if cg, ok := cmdpath[len(cmdpath)-1].cmd.(*cmdGroup); ok {
-		for _, c := range cg.subcmds {
+	if gc, ok := cmdpath[len(cmdpath)-1].cmd.(*groupCmd); ok {
+		for _, c := range gc.subcmds {
 			n, s := getName(c), getPurpose(c)
-			if _, ok := c.(*cmdGroup); ok {
+			if _, ok := c.(*groupCmd); ok {
 				groups = append(groups, [2]string{n, s})
 			} else {
 				subcmds = append(subcmds, [2]string{n, s})
@@ -140,7 +140,7 @@ func getSubcommands(cmdpath []*cmdData) [][2]string {
 	return all
 }
 
-func (cg *cmdGroup) printHelp(ctx context.Context, w io.Writer, cmdpath []*cmdData) error {
+func (gc *groupCmd) printHelp(ctx context.Context, w io.Writer, cmdpath []*cmdData) error {
 	last := cmdpath[len(cmdpath)-1]
 
 	usage := getUsage(cmdpath)

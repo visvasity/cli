@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-type cmdGroup struct {
+type groupCmd struct {
 	flags      *flag.FlagSet
 	subcmds    []Command
 	specialCmd string
@@ -22,18 +22,18 @@ type cmdGroup struct {
 var specialCmds = []string{"help", "flags", "commands"}
 
 // Command implements Command interface.
-func (cg *cmdGroup) Command() (*flag.FlagSet, CmdFunc) {
-	return cg.flags, nil
+func (gc *groupCmd) Command() (*flag.FlagSet, CmdFunc) {
+	return gc.flags, nil
 }
 
-func (cg *cmdGroup) printFlags(ctx context.Context, w io.Writer, cmdpath []*cmdData) error {
+func (gc *groupCmd) printFlags(ctx context.Context, w io.Writer, cmdpath []*cmdData) error {
 	fs := cmdpath[len(cmdpath)-1].fset
 	fs.SetOutput(w)
 	fs.PrintDefaults()
 	return nil
 }
 
-func (cg *cmdGroup) printCommands(ctx context.Context, w io.Writer, cmdpath []*cmdData) error {
+func (gc *groupCmd) printCommands(ctx context.Context, w io.Writer, cmdpath []*cmdData) error {
 	subcmds := getSubcommands(cmdpath)
 	for _, sub := range subcmds {
 		if len(sub[1]) > 0 {
@@ -51,7 +51,7 @@ type cmdData struct {
 	cmd  Command
 }
 
-func (cg *cmdGroup) resolve(ctx context.Context, args []string) ([]*cmdData, []string, error) {
+func (gc *groupCmd) resolve(ctx context.Context, args []string) ([]*cmdData, []string, error) {
 	type boolFlag interface {
 		flag.Value
 		IsBoolFlag() bool
@@ -70,12 +70,12 @@ func (cg *cmdGroup) resolve(ctx context.Context, args []string) ([]*cmdData, []s
 		}
 		cmdDataMap = m
 	}
-	prepCmdDataMap(cg.subcmds)
+	prepCmdDataMap(gc.subcmds)
 
 	cmdpath := []*cmdData{
 		{
 			fset: flag.CommandLine,
-			cmd:  cg,
+			cmd:  gc,
 		},
 	}
 
@@ -109,7 +109,7 @@ func (cg *cmdGroup) resolve(ctx context.Context, args []string) ([]*cmdData, []s
 			if !ok {
 				// handle one of special commands: help, flags, commands
 				if len(cmdpath) == 1 && slices.Contains(specialCmds, s) {
-					cg.specialCmd = s
+					gc.specialCmd = s
 					continue
 				}
 				return nil, nil, fmt.Errorf("command not defined: %s", s)
@@ -117,7 +117,7 @@ func (cg *cmdGroup) resolve(ctx context.Context, args []string) ([]*cmdData, []s
 			cmdpath = append(cmdpath, subcmd)
 
 			// handle subcommands from a command group
-			if sg, ok := subcmd.cmd.(*cmdGroup); ok {
+			if sg, ok := subcmd.cmd.(*groupCmd); ok {
 				prepCmdDataMap(sg.subcmds)
 				continue
 			}
@@ -147,7 +147,7 @@ func (cg *cmdGroup) resolve(ctx context.Context, args []string) ([]*cmdData, []s
 		flag, ok := lookup(name)
 		if !ok {
 			if name == "help" || name == "h" {
-				cg.specialCmd = "help"
+				gc.specialCmd = "help"
 				continue
 			}
 			return nil, nil, fmt.Errorf("flag provided but not defined: -%s", name)
@@ -184,24 +184,24 @@ func (cg *cmdGroup) resolve(ctx context.Context, args []string) ([]*cmdData, []s
 	return cmdpath, args[i:], nil
 }
 
-func (cg *cmdGroup) run(ctx context.Context, args []string) error {
-	cmdpath, args, err := cg.resolve(ctx, args)
+func (gc *groupCmd) run(ctx context.Context, args []string) error {
+	cmdpath, args, err := gc.resolve(ctx, args)
 	if err != nil {
 		return err
 	}
 
-	switch cg.specialCmd {
+	switch gc.specialCmd {
 	case "help":
-		return cg.printHelp(ctx, os.Stdout, cmdpath)
+		return gc.printHelp(ctx, os.Stdout, cmdpath)
 	case "flags":
-		return cg.printFlags(ctx, os.Stdout, cmdpath)
+		return gc.printFlags(ctx, os.Stdout, cmdpath)
 	case "commands":
-		return cg.printCommands(ctx, os.Stdout, cmdpath)
+		return gc.printCommands(ctx, os.Stdout, cmdpath)
 	}
 
 	fun := cmdpath[len(cmdpath)-1].fun
 	if fun == nil {
-		return cg.printHelp(ctx, os.Stdout, cmdpath)
+		return gc.printHelp(ctx, os.Stdout, cmdpath)
 	}
 
 	return fun(ctx, args)
