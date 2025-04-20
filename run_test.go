@@ -24,8 +24,8 @@ func newTestCmd(name string) *TestCmd {
 	}
 }
 
-func (t *TestCmd) Command() (*flag.FlagSet, CmdFunc) {
-	return t.flags, CmdFunc(func(_ context.Context, args []string) error {
+func (t *TestCmd) Command() (string, *flag.FlagSet, CmdFunc) {
+	return t.name, t.flags, CmdFunc(func(_ context.Context, args []string) error {
 		log.Println("running", t.name, "with args", args)
 		t.args = args
 		return nil

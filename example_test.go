@@ -31,10 +31,10 @@ type GreetCommand struct {
 	name string
 }
 
-func (c *GreetCommand) Command() (*flag.FlagSet, cli.CmdFunc) {
-	fset := flag.NewFlagSet("greet", flag.ContinueOnError)
+func (c *GreetCommand) Command() (string, *flag.FlagSet, cli.CmdFunc) {
+	fset := new(flag.FlagSet)
 	fset.StringVar(&c.name, "name", "World", "Name to greet")
-	return fset, func(ctx context.Context, args []string) error {
+	return "greet", fset, func(ctx context.Context, args []string) error {
 		fmt.Printf("Hello, %s!\n", c.name)
 		return nil
 	}

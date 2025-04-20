@@ -19,8 +19,8 @@ func numFlags(fs *flag.FlagSet) int {
 }
 
 func getName(c Command) string {
-	fs, _ := c.Command()
-	_, file := filepath.Split(fs.Name())
+	name, _, _ := c.Command()
+	_, file := filepath.Split(name)
 	return file
 }
 
@@ -68,7 +68,7 @@ func getPurpose(c Command) string {
 }
 
 func getFlags(c Command) (*flag.FlagSet, int) {
-	fs, _ := c.Command()
+	_, fs, _ := c.Command()
 	return fs, numFlags(fs)
 }
 

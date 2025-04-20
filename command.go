@@ -38,10 +38,10 @@
 //	type GreetCommand struct {
 //	    name  string
 //	}
-//	func (c *GreetCommand) Command() (*flag.FlagSet, cli.CmdFunc) {
-//	    fset := flag.NewFlagSet("greet", flag.ContinueOnError)
+//	func (c *GreetCommand) Command() (string, *flag.FlagSet, cli.CmdFunc) {
+//	    fset := new(flag.FlagSet)
 //	    fset.StringVar(&c.name, "name", "World", "Name to greet")
-//	    return fset, func(ctx context.Context, args []string) error {
+//	    return "greet", fset, func(ctx context.Context, args []string) error {
 //	        fmt.Printf("Hello, %s!\n", c.name)
 //	        return nil
 //	    }
@@ -96,17 +96,17 @@ type CmdFunc func(ctx context.Context, args []string) error
 //	type VersionCommand struct {
 //	    flags flag.FlagSet
 //	}
-//	func (c *VersionCommand) Command() (*flag.FlagSet, cli.CmdFunc) {
+//	func (c *VersionCommand) Command() (string, *flag.FlagSet, cli.CmdFunc) {
 //	    c.flags.Init("version", flag.ContinueOnError)
-//	    return c.flags, func(ctx context.Context, args []string) error {
+//	    return "version", c.flags, func(ctx context.Context, args []string) error {
 //	        fmt.Println("Version 1.0.0")
 //	        return nil
 //	    }
 //	}
 type Command interface {
-	// Command returns the command's FlagSet and implementation function.
-	// The FlagSet's name is the command name and must be non-empty.
-	Command() (*flag.FlagSet, CmdFunc)
+	// Command returns a command name, it's flags and the implementation
+	// function.
+	Command() (string, *flag.FlagSet, CmdFunc)
 }
 
 type basicCmd struct {
@@ -115,8 +115,8 @@ type basicCmd struct {
 	purpose string
 }
 
-func (v *basicCmd) Command() (*flag.FlagSet, CmdFunc) {
-	return v.fset, v.cmd
+func (v *basicCmd) Command() (string, *flag.FlagSet, CmdFunc) {
+	return v.fset.Name(), v.fset, v.cmd
 }
 
 func (v *basicCmd) Purpose() string {
@@ -126,6 +126,8 @@ func (v *basicCmd) Purpose() string {
 // NewCommand creates a function-based command with the specified name, function,
 // flags, and description. The flag.FlagSet is optional; if nil, no flags are
 // supported. The package overrides flag.FlagSet's default error handling.
+//
+// Returns nil if command name is empty.
 //
 // Example:
 //
@@ -137,28 +139,15 @@ func (v *basicCmd) Purpose() string {
 //	}
 //	command := cli.NewCommand("greet", cmd, &flags, "Greet a user")
 func NewCommand(name string, cmd CmdFunc, fset *flag.FlagSet, desc string) Command {
+	if len(name) == 0 {
+		return nil
+	}
 	if fset == nil {
 		fset = flag.NewFlagSet(name, flag.ContinueOnError)
 	} else {
 		fset.Init(name, flag.ContinueOnError)
 	}
 	return &basicCmd{cmd: cmd, fset: fset, purpose: desc}
-}
-
-// NewGroup creates a subcommand group with the specified name, description, and
-// subcommands. Returns a Command, enabling nested command hierarchies.
-//
-// Example:
-//
-//	startCmd := cli.NewCommand("start", startFunc, nil, "Start server")
-//	stopCmd := cli.NewCommand("stop", stopFunc, nil, "Stop server")
-//	group := cli.NewGroup("server", "Server operations", startCmd, stopCmd)
-func NewGroup(name, helpLine string, cmds ...Command) Command {
-	return &groupCmd{
-		flags:   flag.NewFlagSet(name, flag.ContinueOnError),
-		subcmds: cmds,
-		purpose: helpLine,
-	}
 }
 
 // Run executes the CLI, parsing arguments to invoke a command from the provided
