@@ -19,23 +19,23 @@ type groupCmd struct {
 	purpose    string
 }
 
-// NewGroup creates a subcommand group with the specified name, description,
-// and subcommands. Returns a Command, enabling nested command
-// hierarchies. Returns nil if group name is empty.
+// NewGroup creates a subcommand group with the specified name, purpose, and
+// subcommands. Returns a Command, enabling nested command hierarchies. Returns
+// nil if group name is empty.
 //
 // Example:
 //
 //	startCmd := cli.NewCommand("start", startFunc, nil, "Start server")
 //	stopCmd := cli.NewCommand("stop", stopFunc, nil, "Stop server")
 //	group := cli.NewGroup("server", "Server operations", startCmd, stopCmd)
-func NewGroup(name, helpLine string, cmds ...Command) Command {
+func NewGroup(name, purpose string, cmds ...Command) Command {
 	if len(name) == 0 {
 		return nil
 	}
 	return &groupCmd{
 		flags:   flag.NewFlagSet(name, flag.ContinueOnError),
 		subcmds: cmds,
-		purpose: helpLine,
+		purpose: purpose,
 	}
 }
 

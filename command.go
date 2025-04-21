@@ -123,9 +123,10 @@ func (v *basicCmd) Purpose() string {
 	return v.purpose
 }
 
-// NewCommand creates a function-based command with the specified name, function,
-// flags, and description. The flag.FlagSet is optional; if nil, no flags are
-// supported. The package overrides flag.FlagSet's default error handling.
+// NewCommand creates a function-based command with the specified name,
+// function, flags, and a single line purpose. The flag.FlagSet is optional; if
+// nil, no flags are supported. The package overrides flag.FlagSet's default
+// error handling.
 //
 // Returns nil if command name is empty.
 //
@@ -138,7 +139,7 @@ func (v *basicCmd) Purpose() string {
 //	    return nil
 //	}
 //	command := cli.NewCommand("greet", cmd, &flags, "Greet a user")
-func NewCommand(name string, cmd CmdFunc, fset *flag.FlagSet, desc string) Command {
+func NewCommand(name string, cmd CmdFunc, fset *flag.FlagSet, purpose string) Command {
 	if len(name) == 0 {
 		return nil
 	}
@@ -147,7 +148,7 @@ func NewCommand(name string, cmd CmdFunc, fset *flag.FlagSet, desc string) Comma
 	} else {
 		fset.Init(name, flag.ContinueOnError)
 	}
-	return &basicCmd{cmd: cmd, fset: fset, purpose: desc}
+	return &basicCmd{cmd: cmd, fset: fset, purpose: purpose}
 }
 
 // Run executes the CLI, parsing arguments to invoke a command from the provided
