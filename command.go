@@ -169,8 +169,10 @@ func Run(ctx context.Context, cmds []Command, args []string) error {
 		subcmds: cmds,
 	}
 	// If user passes os.Args, turn it into os.Args[1:] instead.
-	if &args[0] == &os.Args[0] {
-		args = os.Args[1:]
+	if len(args) != 0 {
+		if &args[0] == &os.Args[0] {
+			args = os.Args[1:]
+		}
 	}
 	return root.run(ctx, args)
 }
