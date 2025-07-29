@@ -13,6 +13,7 @@
 //   - Automatic documentation through built-in commands.
 //   - Custom documentation using optional interfaces.
 //   - Context-aware execution for cancellation and timeouts.
+//   - Redirect a command's stdout to any io.Writer.
 //
 // Create commands with [NewCommand] for functions, [NewGroup] for subcommands,
 // or custom types implementing the [Command] interface. Execute the CLI by passing
