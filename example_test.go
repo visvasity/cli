@@ -6,7 +6,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/visvasity/cli"
@@ -24,7 +23,9 @@ func TestPackageExample1(t *testing.T) {
 		return nil
 	}
 	cmd := cli.NewCommand("list", listCmd, &listFlags, "List resources")
-	cli.Run(context.Background(), []cli.Command{cmd}, os.Args)
+	if err := cli.Run(context.Background(), []cli.Command{cmd}, []string{"list"}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 type GreetCommand struct {
@@ -42,5 +43,7 @@ func (c *GreetCommand) Command() (string, *flag.FlagSet, cli.CmdFunc) {
 
 func TestPackageExample2(t *testing.T) {
 	cmd := &GreetCommand{}
-	cli.Run(context.Background(), []cli.Command{cmd}, os.Args)
+	if err := cli.Run(context.Background(), []cli.Command{cmd}, []string{"greet"}); err != nil {
+		t.Fatal(err)
+	}
 }
