@@ -39,13 +39,25 @@ func TestMultipleRuns(t *testing.T) {
 	if err := Run(ctx, []Command{cmd1, cmd2}, []string{"test-func", "-port", "9999"}); err != nil {
 		t.Fatal(err)
 	}
+	if port != 9999 {
+		t.Fatalf("want port 9999, got %d", port)
+	}
 	if err := Run(ctx, []Command{cmd1, cmd2}, []string{"test-func", "-port", "1111"}); err != nil {
 		t.Fatal(err)
+	}
+	if port != 1111 {
+		t.Fatalf("want port 1111, got %d", port)
 	}
 	if err := Run(ctx, []Command{cmd1, cmd2}, []string{"test-object", "-key", "key1"}); err != nil {
 		t.Fatal(err)
 	}
+	if cmd2.key != "key1" {
+		t.Fatalf("want key1, got %q", cmd2.key)
+	}
 	if err := Run(ctx, []Command{cmd1, cmd2}, []string{"test-object", "-key", "key2"}); err != nil {
 		t.Fatal(err)
+	}
+	if cmd2.key != "key2" {
+		t.Fatalf("want key2, got %q", cmd2.key)
 	}
 }

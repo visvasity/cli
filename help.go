@@ -18,19 +18,23 @@ func numFlags(fs *flag.FlagSet) int {
 	return n
 }
 
-func getName(c Command) string {
-	name, _, _ := c.Command()
-	_, file := filepath.Split(name)
-	return file
+// printDefaults prints the flag defaults to w without permanently redirecting
+// the FlagSet's output.
+func printDefaults(w io.Writer, fs *flag.FlagSet) {
+	saved := fs.Output()
+	fs.SetOutput(w)
+	defer fs.SetOutput(saved)
+	fs.PrintDefaults()
 }
 
 func getUsage(cmdpath []*cmdData) string {
 	var words []string
 
 	for i, c := range cmdpath {
-		name := c.fset.Name()
+		name := c.name
 		if i == 0 {
-			_, name = filepath.Split(c.fset.Name())
+			// Root command name is the program path.
+			_, name = filepath.Split(name)
 		}
 		words = append(words, name)
 	}
@@ -61,52 +65,57 @@ func getPurpose(c Command) string {
 	if v, ok := c.(interface{ Purpose() string }); ok {
 		return v.Purpose()
 	}
-	if v, ok := c.(*groupCmd); ok {
-		return v.purpose
-	}
 	return ""
 }
 
-func getFlags(c Command) (*flag.FlagSet, int) {
-	_, fs, _ := c.Command()
-	return fs, numFlags(fs)
-}
-
-func getInheritedFlags(cmdpath []*cmdData) (*flag.FlagSet, int) {
-	flagMap := make(map[string][]*flag.Flag)
-	collector := func(f *flag.Flag) {
-		fs := flagMap[f.Name]
-		flagMap[f.Name] = append(fs, f)
-	}
-	// Collect flag.Flag values defined by ancestors from the command path. A
-	// flag may be defined multiple times unfortunately, in which case, we pick
+// mergeFlags returns a new FlagSet with the flags defined by all commands in
+// the command path, except the ones that are also defined in the shadow
+// FlagSet when it is non-nil, along with the number of flags in it.
+func mergeFlags(cmdpath []*cmdData, shadow *flag.FlagSet) (*flag.FlagSet, int) {
+	// A flag may be defined multiple times unfortunately, in which case, we pick
 	// the closest/deepest flag.Flag to the currently running command.
-	for i := 0; i < len(cmdpath)-1; i++ {
-		cmdpath[i].fset.VisitAll(collector)
+	flagMap := make(map[string]*flag.Flag)
+	for _, c := range cmdpath {
+		c.fset.VisitAll(func(f *flag.Flag) { flagMap[f.Name] = f })
 	}
 	fset := flag.NewFlagSet("temp", flag.ContinueOnError)
-	for _, fs := range flagMap {
-		last := fs[len(fs)-1]
-		fset.Var(last.Value, last.Name, last.Usage)
+	for name, f := range flagMap {
+		if shadow != nil && shadow.Lookup(name) != nil {
+			continue
+		}
+		fset.Var(f.Value, f.Name, f.Usage)
+		// Var records the current value as the default, so restore the real one.
+		fset.Lookup(f.Name).DefValue = f.DefValue
 	}
 	return fset, numFlags(fset)
 }
 
+// getInheritedFlags returns the flags defined by the ancestors of the current
+// command. Flags redefined by the current command shadow the inherited ones.
+func getInheritedFlags(cmdpath []*cmdData) (*flag.FlagSet, int) {
+	n := len(cmdpath) - 1
+	return mergeFlags(cmdpath[:n], cmdpath[n].fset)
+}
+
+// getAllFlags returns all flags accepted by the current command, which are
+// its own flags and the flags inherited from its ancestors.
+func getAllFlags(cmdpath []*cmdData) (*flag.FlagSet, int) {
+	return mergeFlags(cmdpath, nil)
+}
+
 // getSubcommands returns all subcommand names and purpose as a pair.
 func getSubcommands(cmdpath []*cmdData) [][2]string {
+	// Built-in commands are only available at the top level.
 	var spcmds [][2]string
 	if len(cmdpath) == 1 {
-		spcmds = [][2]string{
-			{"help", "Describe commands and flags"},
-			{"flags", "Describe all known flags"},
-			{"commands", "Lists all command names"},
-		}
+		spcmds = specialCmds
 	}
 
 	var subcmds, groups [][2]string
 	if gc, ok := cmdpath[len(cmdpath)-1].cmd.(*groupCmd); ok {
 		for _, c := range gc.subcmds {
-			n, s := getName(c), getPurpose(c)
+			n, _, _ := c.Command()
+			s := getPurpose(c)
 			if _, ok := c.(*groupCmd); ok {
 				groups = append(groups, [2]string{n, s})
 			} else {
@@ -140,13 +149,28 @@ func getSubcommands(cmdpath []*cmdData) [][2]string {
 	return all
 }
 
+// printSubcommands prints the subcommand names with their purpose, one per
+// line. Empty entries separate the sections and are printed as blank lines.
+func printSubcommands(w io.Writer, subcmds [][2]string) {
+	for _, sub := range subcmds {
+		switch {
+		case len(sub[1]) > 0:
+			fmt.Fprintf(w, "\t%-15s  %s\n", sub[0], sub[1])
+		case len(sub[0]) > 0:
+			fmt.Fprintf(w, "\t%s\n", sub[0])
+		default:
+			fmt.Fprintln(w)
+		}
+	}
+}
+
 func (gc *groupCmd) printHelp(ctx context.Context, w io.Writer, cmdpath []*cmdData) error {
 	last := cmdpath[len(cmdpath)-1]
 
 	usage := getUsage(cmdpath)
 	help := getHelpDoc(last.cmd)
 	subcmds := getSubcommands(cmdpath)
-	flags, nflags := getFlags(last.cmd)
+	flags, nflags := last.fset, numFlags(last.fset)
 	iflags, niflags := getInheritedFlags(cmdpath)
 
 	fmt.Fprintf(w, "Usage: %s\n", usage)
@@ -158,27 +182,17 @@ func (gc *groupCmd) printHelp(ctx context.Context, w io.Writer, cmdpath []*cmdDa
 	if len(subcmds) > 0 {
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "Subcommands:\n")
-		for _, sub := range subcmds {
-			if len(sub[1]) > 0 {
-				fmt.Fprintf(w, "\t%-15s  %s\n", sub[0], sub[1])
-			} else if len(sub[0]) > 0 {
-				fmt.Fprintf(w, "\t%-15s\n", sub[0])
-			} else {
-				fmt.Fprintln(w)
-			}
-		}
+		printSubcommands(w, subcmds)
 	}
 	if nflags > 0 {
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "Flags:\n")
-		flags.SetOutput(w)
-		flags.PrintDefaults()
+		printDefaults(w, flags)
 	}
 	if niflags > 0 {
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "Inherited Flags:\n")
-		iflags.SetOutput(w)
-		iflags.PrintDefaults()
+		printDefaults(w, iflags)
 	}
 	return nil
 }

@@ -1,7 +1,5 @@
 // Copyright (c) 2025 Visvasity LLC
 
-//go:build ignore
-
 package main
 
 import (

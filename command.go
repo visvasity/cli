@@ -83,8 +83,8 @@ import (
 type CmdFunc func(ctx context.Context, args []string) error
 
 // Command defines a CLI command or subcommand group. Implementations must
-// provide a flag.FlagSet and CmdFunc via the Command method. The FlagSet's name
-// serves as the command name and must be non-empty.
+// provide a non-empty command name, a flag.FlagSet and CmdFunc via the Command
+// method. The flag.FlagSet may be nil if the command has no flags.
 //
 // Commands may implement optional interfaces for documentation:
 //   - Purpose() string: Returns a brief description.
@@ -99,7 +99,7 @@ type CmdFunc func(ctx context.Context, args []string) error
 //	}
 //	func (c *VersionCommand) Command() (string, *flag.FlagSet, cli.CmdFunc) {
 //	    c.flags.Init("version", flag.ContinueOnError)
-//	    return "version", c.flags, func(ctx context.Context, args []string) error {
+//	    return "version", &c.flags, func(ctx context.Context, args []string) error {
 //	        fmt.Println("Version 1.0.0")
 //	        return nil
 //	    }
@@ -129,7 +129,7 @@ func (v *basicCmd) Purpose() string {
 // nil, no flags are supported. The package overrides flag.FlagSet's default
 // error handling.
 //
-// Returns nil if command name is empty.
+// Returns nil if command name is empty, which is reported as an error by Run.
 //
 // Example:
 //
@@ -157,6 +157,12 @@ func NewCommand(name string, cmd CmdFunc, fset *flag.FlagSet, purpose string) Co
 // documentation and uses the context for cancellation. Returns an error if
 // parsing or execution fails.
 //
+// Commands cannot be nil, their names cannot be empty and must be unique
+// within their command group. Command groups must have at least one
+// subcommand. All commands are checked on every run, including the ones that
+// are not selected by the arguments. Running a command group without a
+// subcommand prints the help for the group and returns an error.
+//
 // Example:
 //
 //	cmd := cli.NewCommand("version", versionCmd, nil, "Display version")
@@ -170,7 +176,7 @@ func Run(ctx context.Context, cmds []Command, args []string) error {
 		subcmds: cmds,
 	}
 	// If user passes os.Args, turn it into os.Args[1:] instead.
-	if len(args) != 0 {
+	if len(args) != 0 && len(os.Args) != 0 {
 		if &args[0] == &os.Args[0] {
 			args = os.Args[1:]
 		}

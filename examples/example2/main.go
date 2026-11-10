@@ -1,7 +1,5 @@
 // Copyright (c) 2025 Visvasity LLC
 
-//go:build ignore
-
 package main
 
 import (
@@ -52,7 +50,7 @@ type List struct {
 	InOrder, Descend bool
 }
 
-func (c *List) Command() (*flag.FlagSet, cli.CmdFunc) {
+func (c *List) Command() (string, *flag.FlagSet, cli.CmdFunc) {
 	fset := flag.NewFlagSet("list", flag.ContinueOnError)
 	c.DBFlags.SetFlags(fset)
 	c.ClientFlags.SetFlags(fset)
@@ -61,7 +59,7 @@ func (c *List) Command() (*flag.FlagSet, cli.CmdFunc) {
 	fset.StringVar(&c.PrintTemplate, "print-template", "", "text/template to print the value")
 	fset.BoolVar(&c.InOrder, "in-order", false, "when true, prints in ascending order")
 	fset.BoolVar(&c.Descend, "descend", false, "when true, prints in descending order")
-	return fset, cli.CmdFunc(c.Run)
+	return "list", fset, cli.CmdFunc(c.Run)
 }
 
 func (c *List) Purpose() string {
